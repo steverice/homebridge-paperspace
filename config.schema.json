@@ -1,0 +1,22 @@
+{
+  "pluginAlias": "Paperspace",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "required": true,
+        "default": "Paperspace"
+      },
+      "apiKey": {
+        "title": "Paperspace API key",
+        "type": "string",
+        "required": true,
+        "description": "Create an API key in the <a href='https://www.paperspace.com/console/account/api'>Paperspace console</a>"
+      }
+    }
+  }
+}
