@@ -1,5 +1,4 @@
 {
-  "private": true,
   "displayName": "Paperspace Plugin for Homebridge",
   "name": "homebridge-paperspace",
   "version": "0.2.0",
