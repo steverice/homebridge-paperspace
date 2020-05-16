@@ -34,7 +34,11 @@ export class PaperspaceMachineAccessory {
 
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Paperspace');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Paperspace')
+      .setCharacteristic(this.platform.Characteristic.Model, accessory.context.device!.os)
+      .setCharacteristic(this.platform.Characteristic.SerialNumber,
+        // If the machine has a public IP, it's useful to show in HomeKit
+        accessory.context.device!.publicIpAddress ?? accessory.context.device!.id);
 
     // get the Switch service if it exists, otherwise create a new Switch service
     // you can create multiple services for each accessory

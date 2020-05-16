@@ -2,7 +2,7 @@
   "private": true,
   "displayName": "Paperspace Plugin for Homebridge",
   "name": "homebridge-paperspace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connect your Paperspace account to Homebridge",
   "license": "ISC",
   "repository": {
