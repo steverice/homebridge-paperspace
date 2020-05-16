@@ -10,6 +10,14 @@ import paperspace from 'paperspace-node';
 // so we don't need to poll too often
 const MACHINE_STATE_POLL_FREQUENCY = 30000;
 
+interface PaperspaceAccessoryContext extends Record<string, any> {
+  device?: paperspace.machines.Machine;
+}
+
+export interface PaperspaceAccessoryData extends PlatformAccessory {
+  context: PaperspaceAccessoryContext;
+}
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -21,7 +29,7 @@ export class PaperspaceMachineAccessory {
 
   constructor(
     private readonly platform: PaperspacePlatform,
-    private readonly accessory: PlatformAccessory,
+    private readonly accessory: PaperspaceAccessoryData,
   ) {
 
     // set accessory information
@@ -34,7 +42,7 @@ export class PaperspaceMachineAccessory {
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discovfPerDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.name);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device!.name);
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://github.com/homebridge/HAP-NodeJS/blob/master/src/lib/gen/HomeKit.ts
@@ -53,7 +61,7 @@ export class PaperspaceMachineAccessory {
    */
   setOn = async (value: CharacteristicValue) => {
     const shouldBeOn = value as boolean;
-    const machineId = this.accessory.context.device.id;
+    const machineId = this.accessory.context.device!.id;
 
     this.platform.log.debug('Set Characteristic On for %s to %s', machineId, shouldBeOn);
 
@@ -69,7 +77,7 @@ export class PaperspaceMachineAccessory {
   }
 
   waitAndUpdate = async (state: paperspace.machines.MachineState) => {
-    const machineId = this.accessory.context.device.id;
+    const machineId = this.accessory.context.device!.id;
 
     const waitForApi = promisify(this.platform.paperspaceApi.machines.waitfor);
 
@@ -87,7 +95,7 @@ export class PaperspaceMachineAccessory {
    * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
    */
   getOn = async () => {
-    const machineId = this.accessory.context.device.id;
+    const machineId = this.accessory.context.device!.id;
 
     const showApi = promisify(this.platform.paperspaceApi.machines.show);
     const machine = await showApi({ machineId });
@@ -113,7 +121,7 @@ export class PaperspaceMachineAccessory {
       return;
     }
 
-    const machineId = this.accessory.context.device.id;
+    const machineId = this.accessory.context.device!.id;
     const isOn = await this.getOn();
 
     // push the new value to HomeKit

@@ -46,7 +46,31 @@ declare module 'paperspace-node' {
         id: string;
         name: string;
         os: string;
+        ram: string;
+        cpus: number;
+        gpu: string;
+        storageTotal: string;
+        storageUsed: string;
+        usageRate: string;
+        shutdownTimeoutInHours: number;
+        shutdownTimeoutForces: boolean;
+        performAutoSnapshot: boolean;
+        autoSnapshotFrequency: any | null;
+        autoSnapshotSaveCount: any | null;
+        agentType: string;
+        dtCreated: string;
         state: MachineState;
+        updatesPending: boolean;
+        networkId: string;
+        privateIpAddress: string;
+        publicIpAddress: string | null;
+        region: string;
+        userId: string;
+        teamId: string;
+        scriptId: string;
+        dtLastRun: string;
+        dynamicPublicIp: string | null;
+        events: object[];
       }
 
       export const enum MachineState {
