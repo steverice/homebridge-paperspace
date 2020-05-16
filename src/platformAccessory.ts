@@ -1,5 +1,9 @@
 import { CharacteristicEventTypes } from 'homebridge';
-import type { Service, PlatformAccessory, CharacteristicValue} from 'homebridge';
+import type {
+  Service,
+  PlatformAccessory,
+  CharacteristicValue,
+} from 'homebridge';
 
 import { PaperspacePlatform } from './platform';
 import callbackify from './util/callbackify';
@@ -31,30 +35,45 @@ export class PaperspaceMachineAccessory {
     private readonly platform: PaperspacePlatform,
     private readonly accessory: PaperspaceAccessoryData,
   ) {
-
     // set accessory information
-    this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Paperspace')
-      .setCharacteristic(this.platform.Characteristic.Model, accessory.context.device!.os)
-      .setCharacteristic(this.platform.Characteristic.SerialNumber,
+    this.accessory
+      .getService(this.platform.Service.AccessoryInformation)!
+      .setCharacteristic(
+        this.platform.Characteristic.Manufacturer,
+        'Paperspace',
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.Model,
+        accessory.context.device!.os,
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.SerialNumber,
         // If the machine has a public IP, it's useful to show in HomeKit
-        accessory.context.device!.publicIpAddress ?? accessory.context.device!.id);
+        accessory.context.device!.publicIpAddress ??
+          accessory.context.device!.id,
+      );
 
     // get the Switch service if it exists, otherwise create a new Switch service
     // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Switch) ?? this.accessory.addService(this.platform.Service.Switch);
+    this.service =
+      this.accessory.getService(this.platform.Service.Switch) ??
+      this.accessory.addService(this.platform.Service.Switch);
 
     // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discovfPerDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device!.name);
+    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
+    this.service.setCharacteristic(
+      this.platform.Characteristic.Name,
+      accessory.context.device!.name,
+    );
 
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://github.com/homebridge/HAP-NodeJS/blob/master/src/lib/gen/HomeKit.ts
 
     // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .on(CharacteristicEventTypes.SET, callbackify(this.setOn))                // SET - bind to the `setOn` method below
-      .on(CharacteristicEventTypes.GET, callbackify(this.getOn));               // GET - bind to the `getOn` method below
+    this.service
+      .getCharacteristic(this.platform.Characteristic.On)
+      .on(CharacteristicEventTypes.SET, callbackify(this.setOn)) // SET - bind to the `setOn` method below
+      .on(CharacteristicEventTypes.GET, callbackify(this.getOn)); // GET - bind to the `getOn` method below
 
     setInterval(this.updateOn, MACHINE_STATE_POLL_FREQUENCY);
   }
@@ -67,7 +86,11 @@ export class PaperspaceMachineAccessory {
     const shouldBeOn = value as boolean;
     const machineId = this.accessory.context.device!.id;
 
-    this.platform.log.debug('Set Characteristic On for %s to %s', machineId, shouldBeOn);
+    this.platform.log.debug(
+      'Set Characteristic On for %s to %s',
+      machineId,
+      shouldBeOn,
+    );
 
     if (shouldBeOn) {
       const startApi = promisify(this.platform.paperspaceApi.machines.start);
@@ -78,7 +101,7 @@ export class PaperspaceMachineAccessory {
       await stopApi({ machineId });
       this.waitAndUpdate(paperspace.machines.MachineState.Off);
     }
-  }
+  };
 
   waitAndUpdate = async (state: paperspace.machines.MachineState) => {
     const machineId = this.accessory.context.device!.id;
@@ -92,7 +115,7 @@ export class PaperspaceMachineAccessory {
     this.platform.log.debug('%s finished changing to %s', machineId, state);
 
     this.updateOn();
-  }
+  };
 
   /**
    * Handle the "GET" requests from HomeKit
@@ -113,10 +136,14 @@ export class PaperspaceMachineAccessory {
       }
     })();
 
-    this.platform.log.debug('Fetched On state %s for machine %s', isOn, machineId);
+    this.platform.log.debug(
+      'Fetched On state %s for machine %s',
+      isOn,
+      machineId,
+    );
 
     return isOn;
-  }
+  };
 
   updateOn = async () => {
     // If we're waiting for a pending state change, don't update
@@ -130,6 +157,10 @@ export class PaperspaceMachineAccessory {
 
     // push the new value to HomeKit
     this.service.updateCharacteristic(this.platform.Characteristic.On, isOn);
-    this.platform.log.debug('Pushed On state %s for machine %s to HomeKit', isOn, machineId);
-  }
+    this.platform.log.debug(
+      'Pushed On state %s for machine %s to HomeKit',
+      isOn,
+      machineId,
+    );
+  };
 }

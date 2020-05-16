@@ -4,9 +4,17 @@
   },
   "editor.rulers": [ 140 ],
   "eslint.enable": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true,
+    }
+  },
   "cSpell.words": [
     "Paperspace",
     "callbackify",
+    "promisify",
     "waitfor"
   ]
 }

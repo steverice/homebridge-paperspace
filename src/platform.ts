@@ -1,5 +1,11 @@
 import { APIEvent } from 'homebridge';
-import type { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
+import type {
+  API,
+  DynamicPlatformPlugin,
+  Logger,
+  PlatformAccessory,
+  PlatformConfig,
+} from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { PaperspaceMachineAccessory } from './platformAccessory';
@@ -86,7 +92,7 @@ export class PaperspacePlatform implements DynamicPlatformPlugin {
 
       // check that the device has not already been registered by checking the
       // cached devices we stored in the `configureAccessory` method above
-      if (!this.accessories.find(accessory => accessory.UUID === uuid)) {
+      if (!this.accessories.find((accessory) => accessory.UUID === uuid)) {
         this.log.info('Registering new accessory:', machine.name);
 
         // create a new accessory
@@ -101,12 +107,13 @@ export class PaperspacePlatform implements DynamicPlatformPlugin {
         new PaperspaceMachineAccessory(this, accessory);
 
         // link the accessory to your platform
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [
+          accessory,
+        ]);
 
         // push into accessory cache
         this.accessories.push(accessory);
       }
     }
-
   }
 }
