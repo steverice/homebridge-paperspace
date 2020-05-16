@@ -53,11 +53,10 @@ export class PaperspaceMachineAccessory {
           accessory.context.device!.id,
       );
 
-    // get the Switch service if it exists, otherwise create a new Switch service
-    // you can create multiple services for each accessory
+    // get the GarageDoorOpener service if it exists, otherwise create a new GarageDoorOpener service
     this.service =
-      this.accessory.getService(this.platform.Service.Switch) ??
-      this.accessory.addService(this.platform.Service.Switch);
+      this.accessory.getService(this.platform.Service.GarageDoorOpener) ??
+      this.accessory.addService(this.platform.Service.GarageDoorOpener);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
@@ -66,41 +65,111 @@ export class PaperspaceMachineAccessory {
       accessory.context.device!.name,
     );
 
+    // We will never have an "obstruction"
+    this.service.setCharacteristic(
+      this.platform.Characteristic.ObstructionDetected,
+      false,
+    );
+
     // each service must implement at-minimum the "required characteristics" for the given service type
     // see https://github.com/homebridge/HAP-NodeJS/blob/master/src/lib/gen/HomeKit.ts
 
-    // register handlers for the On/Off Characteristic
     this.service
-      .getCharacteristic(this.platform.Characteristic.On)
-      .on(CharacteristicEventTypes.SET, callbackify(this.setOn)) // SET - bind to the `setOn` method below
-      .on(CharacteristicEventTypes.GET, callbackify(this.getOn)); // GET - bind to the `getOn` method below
+      .getCharacteristic(this.platform.Characteristic.TargetDoorState)
+      .on(CharacteristicEventTypes.SET, callbackify(this.setTargetDoorState))
+      .on(CharacteristicEventTypes.GET, callbackify(this.getTargetDoorState));
 
-    setInterval(this.updateOn, MACHINE_STATE_POLL_FREQUENCY);
+    this.service
+      .getCharacteristic(this.platform.Characteristic.CurrentDoorState)
+      .on(CharacteristicEventTypes.GET, callbackify(this.getCurrentDoorState));
+
+    setInterval(this.updateStates, MACHINE_STATE_POLL_FREQUENCY);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
-  setOn = async (value: CharacteristicValue) => {
-    const shouldBeOn = value as boolean;
+  setTargetDoorState = async (targetDoorState: CharacteristicValue) => {
     const machineId = this.accessory.context.device!.id;
 
     this.platform.log.debug(
-      'Set Characteristic On for %s to %s',
+      'Set Characteristic TargetDoorState for %s to %s',
       machineId,
-      shouldBeOn,
+      targetDoorState,
     );
 
-    if (shouldBeOn) {
-      const startApi = promisify(this.platform.paperspaceApi.machines.start);
-      await startApi({ machineId });
-      this.waitAndUpdate(paperspace.machines.MachineState.Ready);
-    } else {
-      const stopApi = promisify(this.platform.paperspaceApi.machines.stop);
-      await stopApi({ machineId });
-      this.waitAndUpdate(paperspace.machines.MachineState.Off);
+    switch (targetDoorState) {
+      case this.platform.Characteristic.TargetDoorState.OPEN: {
+        const startApi = promisify(this.platform.paperspaceApi.machines.start);
+        await startApi({ machineId });
+        this.waitAndUpdate(paperspace.machines.MachineState.Ready);
+        break;
+      }
+      case this.platform.Characteristic.TargetDoorState.CLOSED: {
+        const stopApi = promisify(this.platform.paperspaceApi.machines.stop);
+        await stopApi({ machineId });
+        this.waitAndUpdate(paperspace.machines.MachineState.Off);
+        break;
+      }
+      default: {
+        this.platform.log.warn(
+          'Unrecognized target door state %s',
+          targetDoorState,
+        );
+        break;
+      }
     }
+  };
+
+  getTargetDoorState = async () => {
+    const machineId = this.accessory.context.device!.id;
+
+    const showApi = promisify(this.platform.paperspaceApi.machines.show);
+    const machine = await showApi({ machineId });
+
+    const targetDoorState = (() => {
+      switch (machine?.state!) {
+        case paperspace.machines.MachineState.Off:
+        case paperspace.machines.MachineState.Stopping:
+          return this.platform.Characteristic.TargetDoorState.CLOSED;
+        case paperspace.machines.MachineState.Ready:
+        case paperspace.machines.MachineState.Provisioning:
+        case paperspace.machines.MachineState.Restarting:
+        case paperspace.machines.MachineState.ServiceReady:
+        case paperspace.machines.MachineState.Starting:
+        case paperspace.machines.MachineState.Upgrading:
+          return this.platform.Characteristic.TargetDoorState.OPEN;
+      }
+    })();
+
+    this.platform.log.debug(
+      'Fetched TargetDoorState %s for machine %s',
+      targetDoorState,
+      machineId,
+    );
+
+    return targetDoorState;
+  };
+
+  getCurrentDoorState = async () => {
+    const machineId = this.accessory.context.device!.id;
+
+    const showApi = promisify(this.platform.paperspaceApi.machines.show);
+    const machine = await showApi({ machineId });
+
+    const currentDoorState = (() => {
+      switch (machine?.state) {
+        case paperspace.machines.MachineState.Off:
+          return this.platform.Characteristic.TargetDoorState.CLOSED;
+        default:
+          return this.platform.Characteristic.TargetDoorState.OPEN;
+      }
+    })();
+
+    this.platform.log.debug(
+      'Fetched CurrentDoorState %s for machine %s',
+      currentDoorState,
+      machineId,
+    );
+
+    return currentDoorState;
   };
 
   waitAndUpdate = async (state: paperspace.machines.MachineState) => {
@@ -114,38 +183,10 @@ export class PaperspaceMachineAccessory {
     this.updatePending = false;
     this.platform.log.debug('%s finished changing to %s', machineId, state);
 
-    this.updateOn();
+    return await this.updateStates();
   };
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   */
-  getOn = async () => {
-    const machineId = this.accessory.context.device!.id;
-
-    const showApi = promisify(this.platform.paperspaceApi.machines.show);
-    const machine = await showApi({ machineId });
-
-    const isOn = (() => {
-      switch (machine?.state) {
-        case paperspace.machines.MachineState.Off:
-          return false;
-        default:
-          return true;
-      }
-    })();
-
-    this.platform.log.debug(
-      'Fetched On state %s for machine %s',
-      isOn,
-      machineId,
-    );
-
-    return isOn;
-  };
-
-  updateOn = async () => {
+  updateStates = async () => {
     // If we're waiting for a pending state change, don't update
     // avoids confusion while machine is booting/shutting down
     if (this.updatePending) {
@@ -153,14 +194,35 @@ export class PaperspaceMachineAccessory {
     }
 
     const machineId = this.accessory.context.device!.id;
-    const isOn = await this.getOn();
+    return await Promise.all([
+      (async () => {
+        const targetDoorState = await this.getTargetDoorState();
 
-    // push the new value to HomeKit
-    this.service.updateCharacteristic(this.platform.Characteristic.On, isOn);
-    this.platform.log.debug(
-      'Pushed On state %s for machine %s to HomeKit',
-      isOn,
-      machineId,
-    );
+        // push the new value to HomeKit
+        this.service.updateCharacteristic(
+          this.platform.Characteristic.TargetDoorState,
+          targetDoorState,
+        );
+        this.platform.log.debug(
+          'Pushed TargetDoorState %s for machine %s to HomeKit',
+          targetDoorState,
+          machineId,
+        );
+      })(),
+      (async () => {
+        const currentDoorState = await this.getCurrentDoorState();
+
+        // push the new value to HomeKit
+        this.service.updateCharacteristic(
+          this.platform.Characteristic.CurrentDoorState,
+          currentDoorState,
+        );
+        this.platform.log.debug(
+          'Pushed CurrentDoorState %s for machine %s to HomeKit',
+          currentDoorState,
+          machineId,
+        );
+      })(),
+    ]);
   };
 }
